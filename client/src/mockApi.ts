@@ -22,6 +22,12 @@ const getUsers = (): User[] => JSON.parse(localStorage.getItem('users') || '[]')
 const setUsers = (users: User[]) => localStorage.setItem('users', JSON.stringify(users));
 const getPosts = (): Post[] => JSON.parse(localStorage.getItem('posts') || '[]');
 const setPosts = (posts: Post[]) => localStorage.setItem('posts', JSON.stringify(posts));
+const getCurrentUser = (): User | null => {
+    const username = localStorage.getItem('username');
+    if (!username) return null;
+    const users = getUsers();
+    return users.find(u => u.username === username) || null;
+};
 
 // Mock API
 export const mockApi = {
@@ -49,10 +55,14 @@ export const mockApi = {
         }
 
         if (url === '/posts') {
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                return Promise.reject({ response: { data: { error: 'Not authenticated' } } });
+            }
             const posts = getPosts();
             const newPost = {
                 id: Date.now(),
-                user_id: 1, // Mock user ID
+                user_id: currentUser.id,
                 parent_id: null,
                 operation: null,
                 operand: null,
@@ -61,7 +71,7 @@ export const mockApi = {
             };
             posts.push(newPost);
             setPosts(posts);
-            return { data: { message: 'success', data: { ...newPost, username: 'You' } } };
+            return { data: { message: 'success', data: { ...newPost, username: currentUser.username } } };
         }
 
         if (url.match(/\/posts\/\d+\/reply/)) {
@@ -84,9 +94,13 @@ export const mockApi = {
                     break;
             }
 
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                return Promise.reject({ response: { data: { error: 'Not authenticated' } } });
+            }
             const newPost = {
                 id: Date.now(),
-                user_id: 1,
+                user_id: currentUser.id,
                 parent_id: parentId,
                 operation: data.operation,
                 operand: numOperand,
@@ -95,7 +109,7 @@ export const mockApi = {
             };
             posts.push(newPost);
             setPosts(posts);
-            return { data: { message: 'success', data: { ...newPost, username: 'You' } } };
+            return { data: { message: 'success', data: { ...newPost, username: currentUser.username } } };
         }
 
         return Promise.reject({ response: { data: { error: 'Not found' } } });
